@@ -23,6 +23,7 @@ def test_settings_enforces_allowlist() -> None:
         allowed_chat_ids=frozenset({42}),
         max_messages_per_request=100,
         max_search_results=100,
+        max_media_bytes=10 * 1024 * 1024,
     )
 
     settings.require_chat(42)
@@ -39,6 +40,7 @@ def test_empty_allowlist_allows_any_chat() -> None:
         allowed_chat_ids=frozenset(),
         max_messages_per_request=100,
         max_search_results=100,
+        max_media_bytes=10 * 1024 * 1024,
     )
 
     assert settings.allows_chat(-100123)
