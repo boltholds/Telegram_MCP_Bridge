@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "telegram-mcp-bridge"
+version = "0.1.0"
+description = "Read-only MCP bridge for a Telegram user account"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "boltholds" }]
+dependencies = [
+  "mcp>=1.26,<2",
+  "python-dotenv>=1.1,<2",
+  "telethon>=1.44,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<10",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+telegram-mcp = "telegram_mcp_bridge.server:main"
+telegram-mcp-login = "telegram_mcp_bridge.login:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/telegram_mcp_bridge"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
