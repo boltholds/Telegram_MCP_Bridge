@@ -37,6 +37,7 @@ class Settings:
     allowed_chat_ids: frozenset[int]
     max_messages_per_request: int
     max_search_results: int
+    max_media_bytes: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -66,6 +67,7 @@ class Settings:
                 "TELEGRAM_MAX_MESSAGES_PER_REQUEST", 100
             ),
             max_search_results=_positive_int("TELEGRAM_MAX_SEARCH_RESULTS", 100),
+            max_media_bytes=_positive_int("TELEGRAM_MAX_MEDIA_BYTES", 10 * 1024 * 1024),
         )
 
     def allows_chat(self, chat_id: int) -> bool:
