@@ -136,6 +136,42 @@ class TelegramReadClient:
             "fake": bool(getattr(entity, "fake", False)),
         }
 
+    async def get_image(self, chat_id: int, message_id: int) -> tuple[bytes, str]:
+        """Download an image attachment into memory without persisting it."""
+        self.settings.require_chat(chat_id)
+        client = await self.ensure_connected()
+        message = await client.get_messages(chat_id, ids=message_id)
+        if message is None:
+            raise LookupError(f"Message {message_id} was not found in chat {chat_id}")
+        if message.media is None:
+            raise ValueError(f"Message {message_id} has no media attachment")
+
+        mime_type = getattr(message.file, "mime_type", None)
+        if message.photo is not None:
+            mime_type = "image/jpeg"
+        if mime_type not in {"image/jpeg", "image/png", "image/gif", "image/webp"}:
+            raise ValueError(
+                f"Message {message_id} does not contain a supported image "
+                f"(mime type: {mime_type or 'unknown'})"
+            )
+
+        declared_size = getattr(message.file, "size", None)
+        if declared_size and declared_size > self.settings.max_media_bytes:
+            raise ValueError(
+                f"Image is too large ({declared_size} bytes); "
+                f"limit is {self.settings.max_media_bytes} bytes"
+            )
+
+        data = await client.download_media(message, file=bytes)
+        if not isinstance(data, bytes):
+            raise RuntimeError("Telegram did not return image bytes")
+        if len(data) > self.settings.max_media_bytes:
+            raise ValueError(
+                f"Image is too large ({len(data)} bytes); "
+                f"limit is {self.settings.max_media_bytes} bytes"
+            )
+        return data, mime_type
+
 
 def session_file(path: Path) -> Path:
     return path if path.suffix == ".session" else path.with_suffix(".session")
