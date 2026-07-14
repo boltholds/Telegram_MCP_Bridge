@@ -9,6 +9,7 @@ A local, read-only MCP bridge for accessing your own Telegram account through a 
 - `telegram_search_messages`
 - `telegram_get_message_context`
 - `telegram_get_chat_info`
+- `telegram_get_image`
 
 The first version cannot send, edit, delete, forward, or mark messages as read.
 
@@ -76,7 +77,9 @@ Limits are controlled with:
 - `TELEGRAM_MAX_MESSAGES_PER_REQUEST` (default: 100)
 - `TELEGRAM_MAX_SEARCH_RESULTS` (default: 100)
 
-Media is not downloaded in this version.
+`telegram_get_image` returns JPEG, PNG, GIF, and WebP attachments directly as MCP
+image content. Downloads stay in memory and are capped by
+`TELEGRAM_MAX_MEDIA_BYTES` (default: 10 MiB).
 
 ## Security
 
