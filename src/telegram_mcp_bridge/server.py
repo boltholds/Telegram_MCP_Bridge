@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Image
 
 from .client import TelegramReadClient
 from .config import get_settings
@@ -71,6 +71,14 @@ async def telegram_get_message_context(
 async def telegram_get_chat_info(chat_id: int) -> dict[str, Any]:
     """Return basic metadata for one allowed chat."""
     return await bridge().get_chat_info(chat_id)
+
+
+@mcp.tool()
+async def telegram_get_image(chat_id: int, message_id: int) -> Image:
+    """Return a JPEG, PNG, GIF, or WebP image attached to an allowed message."""
+    data, mime_type = await bridge().get_image(chat_id, message_id)
+    image_format = mime_type.split("/", maxsplit=1)[1]
+    return Image(data=data, format=image_format)
 
 
 def main() -> None:
