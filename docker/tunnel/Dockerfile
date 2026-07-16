@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && test -x /usr/local/bin/tunnel-client \
     && rm -rf /tmp/tunnel-client "/tmp/${archive}" /var/lib/apt/lists/*
 COPY docker/tunnel/entrypoint.sh /usr/local/bin/tunnel-entrypoint
-RUN chmod 0755 /usr/local/bin/tunnel-entrypoint && useradd --create-home --uid 10002 tunnel \
+RUN sed -i 's/\r$//' /usr/local/bin/tunnel-entrypoint \
+    && chmod 0755 /usr/local/bin/tunnel-entrypoint \
+    && useradd --create-home --uid 10002 tunnel \
     && mkdir -p /data/tunnel-client && chown -R tunnel:tunnel /data/tunnel-client
 USER tunnel
 EXPOSE 8080
