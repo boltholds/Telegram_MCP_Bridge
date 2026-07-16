@@ -11,9 +11,11 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "boltholds" }]
 dependencies = [
+  "fastapi>=0.115,<1",
   "mcp>=1.26,<2",
   "python-dotenv>=1.1,<2",
   "telethon>=1.44,<2",
+  "uvicorn[standard]>=0.34,<1",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +27,7 @@ dev = [
 [project.scripts]
 telegram-mcp = "telegram_mcp_bridge.server:main"
 telegram-mcp-login = "telegram_mcp_bridge.login:main"
+telegram-mcp-web = "telegram_mcp_bridge.web:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/telegram_mcp_bridge"]

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from telethon import TelegramClient
+from telethon.errors import SessionPasswordNeededError
 
 from .config import Settings
 from .models import display_name, serialize_dialog, serialize_message
@@ -22,16 +23,81 @@ class TelegramReadClient:
             self.settings.api_hash,
         )
         self._connect_lock = asyncio.Lock()
+        self._auth_lock = asyncio.Lock()
+        self._pending_phone: str | None = None
+        self._phone_code_hash: str | None = None
 
-    async def ensure_connected(self) -> TelegramClient:
+    async def connect(self) -> TelegramClient:
         async with self._connect_lock:
             if not self._client.is_connected():
                 await self._client.connect()
-            if not await self._client.is_user_authorized():
-                raise RuntimeError(
-                    "Telegram session is not authorized. Run telegram-mcp-login first."
-                )
         return self._client
+
+    async def authorization_status(self) -> dict[str, Any]:
+        client = await self.connect()
+        authorized = await client.is_user_authorized()
+        result: dict[str, Any] = {"authorized": authorized}
+        if authorized:
+            me = await client.get_me()
+            result.update(
+                id=getattr(me, "id", None),
+                username=getattr(me, "username", None),
+                phone=getattr(me, "phone", None),
+                name=display_name(me),
+            )
+        return result
+
+    async def send_login_code(self, phone: str) -> dict[str, str]:
+        phone = phone.strip()
+        if not phone:
+            raise ValueError("Phone number is required")
+        async with self._auth_lock:
+            client = await self.connect()
+            sent = await client.send_code_request(phone)
+            self._pending_phone = phone
+            self._phone_code_hash = sent.phone_code_hash
+        return {"state": "code_required"}
+
+    async def submit_login_code(self, code: str) -> dict[str, str]:
+        if not self._pending_phone or not self._phone_code_hash:
+            raise RuntimeError("Request a login code first")
+        async with self._auth_lock:
+            try:
+                await self._client.sign_in(
+                    phone=self._pending_phone,
+                    code=code.strip(),
+                    phone_code_hash=self._phone_code_hash,
+                )
+            except SessionPasswordNeededError:
+                return {"state": "password_required"}
+            self._clear_pending_login()
+        return {"state": "authorized"}
+
+    async def submit_password(self, password: str) -> dict[str, str]:
+        async with self._auth_lock:
+            await self._client.sign_in(password=password)
+            self._clear_pending_login()
+        return {"state": "authorized"}
+
+    async def logout(self) -> dict[str, str]:
+        async with self._auth_lock:
+            client = await self.connect()
+            await client.log_out()
+            self._clear_pending_login()
+        return {"state": "logged_out"}
+
+    def _clear_pending_login(self) -> None:
+        self._pending_phone = None
+        self._phone_code_hash = None
+
+    async def ensure_connected(self) -> TelegramClient:
+        client = await self.connect()
+        if not await client.is_user_authorized():
+            raise RuntimeError(
+                "Telegram session is not authorized. Open the local web panel or run "
+                "telegram-mcp-login first."
+            )
+        return client
 
     @staticmethod
     def _bounded(value: int, maximum: int, name: str = "limit") -> int:

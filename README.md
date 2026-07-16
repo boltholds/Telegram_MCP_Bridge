@@ -1,5 +1,87 @@
 # Telegram MCP Bridge
 
+> Самый простой вариант установки теперь — Docker Compose: он запускает мост,
+> локальную веб-панель Telegram и официальный OpenAI `tunnel-client` sidecar.
+
+## Установка через Docker Compose
+
+Нужны Docker Desktop, Telegram `api_id`/`api_hash`, OpenAI Tunnel ID и Runtime API key.
+
+1. Создайте приложение на <https://my.telegram.org> и сохраните `api_id` и `api_hash`.
+2. В [OpenAI Platform → Tunnels](https://platform.openai.com/settings/organization/tunnels)
+   создайте туннель и скопируйте значение вида `tunnel_...`.
+3. В [OpenAI Platform → API keys](https://platform.openai.com/settings/organization/api-keys)
+   создайте **Runtime API key** для туннеля. Admin key для запуска не нужен.
+4. Скопируйте `.env.example` в `.env` и заполните:
+
+```dotenv
+TELEGRAM_API_ID=12345678
+TELEGRAM_API_HASH=your_api_hash
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=use_a_long_random_password
+TUNNEL_ID=tunnel_your_id
+CONTROL_PLANE_API_KEY=sk-your_runtime_key
+```
+
+5. Запустите сервисы:
+
+```powershell
+docker compose up --build -d
+docker compose logs -f
+```
+
+Во время сборки sidecar сам скачивает официальный `tunnel-client` `v0.0.10` для
+архитектуры Docker (`amd64` или `arm64`) и проверяет SHA-256. В рантайме он читает
+`TUNNEL_ID` и `CONTROL_PLANE_API_KEY` из `.env`, создаёт профиль и подключает
+внутренний MCP endpoint `http://telegram-bridge:8765/mcp/`.
+
+Откройте <http://127.0.0.1:8765>, введите `ADMIN_USERNAME`/`ADMIN_PASSWORD`, затем:
+
+1. укажите номер Telegram в международном формате;
+2. введите код, пришедший от Telegram;
+3. если включена двухэтапная аутентификация, введите пароль 2FA.
+
+Код подтверждения и пароль 2FA не сохраняются. Telegram-сессия лежит в именованном
+Docker volume `telegram-session`, поэтому повторно входить после перезапуска не нужно.
+
+Проверьте состояние:
+
+```powershell
+docker compose ps
+curl http://127.0.0.1:8080/readyz
+```
+
+После этого создайте или обновите коннектор в
+[ChatGPT → Настройки → Коннекторы](https://chatgpt.com/#settings/Connectors), пока оба
+контейнера запущены. Внешний URL вручную придумывать не требуется: коннектор связан
+с созданным Tunnel ID.
+
+Остановка и обновление:
+
+```powershell
+docker compose down
+docker compose pull
+docker compose up --build -d
+```
+
+Не используйте `docker compose down -v`, если хотите сохранить Telegram-сессию.
+Файл `.env` уже исключён из Git; никогда не коммитьте Runtime API key или session-файлы.
+
+### Настройки Docker
+
+| Переменная | Назначение | По умолчанию |
+|---|---|---|
+| `TUNNEL_ID` | ID Secure MCP Tunnel | обязательна |
+| `CONTROL_PLANE_API_KEY` | Runtime API key | обязательна |
+| `ADMIN_USERNAME` | логин веб-панели | `admin` |
+| `ADMIN_PASSWORD` | пароль веб-панели | обязательна для панели |
+| `WEB_PANEL_PORT` | локальный порт панели/MCP | `8765` |
+| `TUNNEL_HEALTH_PORT` | локальный health-порт tunnel-client | `8080` |
+| `TUNNEL_CLIENT_VERSION` | закреплённая версия образа | `0.0.10` |
+
+Порты публикуются только на `127.0.0.1`. Не выставляйте веб-панель напрямую в
+интернет. Для production предпочтительнее Docker secrets вместо `.env`.
+
 A local, read-only MCP bridge for accessing your own Telegram account through a user session. It uses [Telethon](https://docs.telethon.dev/) (MTProto), not the Telegram Bot API.
 
 ## Current tools

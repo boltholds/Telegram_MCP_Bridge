@@ -3,11 +3,24 @@ from __future__ import annotations
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP, Image
+from mcp.server.transport_security import TransportSecuritySettings
 
 from .client import TelegramReadClient
 from .config import get_settings
 
-mcp = FastMCP("Telegram MCP Bridge")
+mcp = FastMCP(
+    "Telegram MCP Bridge",
+    streamable_http_path="/",
+    transport_security=TransportSecuritySettings(
+        allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*", "telegram-bridge:*"],
+        allowed_origins=[
+            "http://127.0.0.1:*",
+            "http://localhost:*",
+            "http://[::1]:*",
+            "http://telegram-bridge:*",
+        ],
+    ),
+)
 _bridge: TelegramReadClient | None = None
 
 

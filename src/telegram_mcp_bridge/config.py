@@ -38,6 +38,10 @@ class Settings:
     max_messages_per_request: int
     max_search_results: int
     max_media_bytes: int
+    web_host: str = "127.0.0.1"
+    web_port: int = 8765
+    admin_username: str = "admin"
+    admin_password: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -68,6 +72,10 @@ class Settings:
             ),
             max_search_results=_positive_int("TELEGRAM_MAX_SEARCH_RESULTS", 100),
             max_media_bytes=_positive_int("TELEGRAM_MAX_MEDIA_BYTES", 10 * 1024 * 1024),
+            web_host=os.getenv("WEB_HOST", "127.0.0.1"),
+            web_port=_positive_int("WEB_PORT", 8765),
+            admin_username=os.getenv("ADMIN_USERNAME", "admin"),
+            admin_password=os.getenv("ADMIN_PASSWORD", "").strip(),
         )
 
     def allows_chat(self, chat_id: int) -> bool:

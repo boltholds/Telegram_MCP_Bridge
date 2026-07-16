@@ -1,0 +1,38 @@
+services:
+  telegram-bridge:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 8765
+      TELEGRAM_SESSION_PATH: /data/telegram/telegram_mcp
+    volumes:
+      - telegram-session:/data/telegram
+    ports:
+      - "127.0.0.1:${WEB_PANEL_PORT:-8765}:8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/readyz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  tunnel-client:
+    build:
+      context: .
+      dockerfile: docker/tunnel/Dockerfile
+      args:
+        TUNNEL_CLIENT_VERSION: ${TUNNEL_CLIENT_VERSION:-0.0.10}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MCP_SERVER_URL: http://telegram-bridge:8765/mcp/
+    depends_on:
+      telegram-bridge:
+        condition: service_healthy
+    volumes:
+      - tunnel-state:/data/tunnel-client
+    ports:
+      - "127.0.0.1:${TUNNEL_HEALTH_PORT:-8080}:8080"
+volumes:
+  telegram-session:
+  tunnel-state:
