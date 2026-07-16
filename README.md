@@ -82,6 +82,63 @@ docker compose up --build -d
 Порты публикуются только на `127.0.0.1`. Не выставляйте веб-панель напрямую в
 интернет. Для production предпочтительнее Docker secrets вместо `.env`.
 
+### Диагностика Docker
+
+#### `exec /usr/local/bin/tunnel-entrypoint: no such file or directory`
+
+На Windows эта ошибка обычно означает, что shell-скрипт попал в образ с окончаниями
+строк CRLF, и Linux пытается найти интерпретатор с именем `/bin/sh\r`. Это не означает,
+что сам файл действительно отсутствует.
+
+В актуальной версии проекта проблема исправлена двумя уровнями защиты:
+
+- `.gitattributes` сохраняет все `*.sh` с окончаниями LF;
+- Dockerfile дополнительно удаляет `CR` при сборке образа.
+
+Получите исправление и полностью пересоберите только tunnel-контейнер:
+
+```powershell
+git pull
+docker compose down
+docker compose build --no-cache tunnel-client
+docker compose up -d
+docker compose logs -f tunnel-client
+```
+
+Удалять volumes не требуется: авторизованная Telegram-сессия останется на месте.
+Не запускайте `docker compose down -v`, иначе volume с сессией будет удалён.
+
+#### Проверка состояния
+
+```powershell
+docker compose ps
+docker compose logs --tail=100 telegram-bridge
+docker compose logs --tail=100 tunnel-client
+curl.exe http://127.0.0.1:8765/readyz
+curl.exe http://127.0.0.1:8080/readyz
+```
+
+Оба контейнера должны иметь состояние `running`/`healthy`. В логах моста ожидаются
+`Application startup complete` и `StreamableHTTP session manager started`. В логах
+туннеля не должно быть циклического перезапуска или ошибок `401 Unauthorized`.
+
+#### `401 Unauthorized` от control plane
+
+Проверьте, что `CONTROL_PLANE_API_KEY` является именно Runtime API key, а не Admin
+key, и что ключ и `TUNNEL_ID` созданы в одной OpenAI Platform organization. После
+изменения `.env` пересоздайте контейнер:
+
+```powershell
+docker compose up -d --force-recreate tunnel-client
+docker compose logs -f tunnel-client
+```
+
+#### Веб-панель возвращает `401 Unauthorized`
+
+Это ожидаемый HTTP Basic challenge. Браузер должен показать окно входа — используйте
+`ADMIN_USERNAME` и `ADMIN_PASSWORD` из `.env`. Запись `GET / 401` перед последующим
+`GET / 200` в логах означает нормальный успешный вход.
+
 A local, read-only MCP bridge for accessing your own Telegram account through a user session. It uses [Telethon](https://docs.telethon.dev/) (MTProto), not the Telegram Bot API.
 
 ## Current tools
